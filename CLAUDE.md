@@ -8,66 +8,179 @@ This project provides visibility into GitHub tasks (issues/pull requests) and tr
 
 ## Project Architecture
 
-This is a new project. The recommended architecture should include:
+This is a monorepo project with a backend API and frontend dashboard:
+
+```
+GHMonitoring/
+├── backend/          # Node.js + TypeScript + Express API
+│   ├── src/
+│   │   ├── api/         # REST API routes
+│   │   ├── config/      # Configuration management
+│   │   ├── database/    # Database schema & migrations
+│   │   ├── services/    # Business logic (fetcher, processor, polling)
+│   │   ├── types/       # TypeScript type definitions
+│   │   └── utils/       # Helper utilities (GraphQL, logger)
+│   └── package.json
+└── frontend/         # React + TypeScript + Vite
+    ├── src/
+    │   ├── components/  # React components (StatsCard, TasksTable, TrendChart)
+    │   ├── services/    # API client
+    │   └── types/       # TypeScript interfaces
+    └── package.json
+```
+
+### Technology Stack
+
+- **Backend**: Node.js, TypeScript, Express, node-cron, winston
+- **Database**: PostgreSQL
+- **GitHub API**: GraphQL via `gh` CLI
+- **Frontend**: React, TypeScript, Vite, Recharts
+- **Deployment**: Configurable via environment variables
 
 ### Core Components
 
-1. **GitHub API Integration**
-   - Authenticate with GitHub API (using personal access tokens or GitHub App)
-   - Fetch issues and pull requests from target repositories
-   - Track issue/PR status, assignees, and labels
-   - Monitor state changes (opened, assigned, in progress, completed)
+1. **GitHub API Integration** (`backend/src/utils/github-graphql.ts`)
+   - Uses GitHub Projects v2 GraphQL API via `gh api graphql`
+   - Fetches project items with pagination
+   - Extracts issues, PRs, status, due dates, assignees
 
-2. **Data Storage**
-   - Store historical data about tasks (issues/PRs)
-   - Track assignments and state transitions
-   - Record completion dates and assignee information
+2. **Data Processing** (`backend/src/services/`)
+   - `GitHubFetcherService`: Transforms GitHub data to internal Task format
+   - `TaskProcessorService`: Calculates stats, segregates tasks, identifies overdue items
+   - `PollingService`: Scheduled data fetching with node-cron
 
-3. **Dashboard/Reporting**
-   - Visualize task pickup rates by team members
-   - Show completion metrics and timelines
-   - Display current task status across repositories
+3. **Data Storage** (`backend/src/database/`)
+   - PostgreSQL tables: tasks, task_assignments, task_snapshots, daily_statistics
+   - Historical tracking for trend analysis
+   - Repository pattern for data access
 
-4. **Task State Management**
-   - Define task lifecycle: created → assigned → in progress → completed
-   - Map GitHub labels/events to internal state model
-   - Handle edge cases (reassignments, reopened issues)
+4. **REST API** (`backend/src/api/routes.ts`)
+   - GET /api/stats - Current task statistics
+   - GET /api/tasks - All tasks with filters
+   - GET /api/tasks/overdue - Overdue tasks
+   - GET /api/history - Historical data
+   - POST /api/refresh - Manual data refresh
 
-## Technology Stack Considerations
+5. **Frontend Dashboard** (`frontend/src/`)
+   - Statistics cards showing totals, open, closed, overdue
+   - Trend chart with historical data
+   - Sortable/filterable tasks table
+   - Auto-refresh every 30 seconds
 
-When implementing this project, consider:
+## Setup Instructions
 
-- **Backend**: Node.js/Python for GitHub API integration and data processing
-- **Database**: PostgreSQL/MongoDB for historical task data
-- **API Framework**: Express/FastAPI for exposing metrics
-- **Frontend**: React/Vue for dashboard visualization
-- **GitHub Integration**: Octokit (JS) or PyGithub (Python) libraries
+### Prerequisites
 
-## GitHub API Integration Notes
+- Node.js 18+ and npm
+- PostgreSQL 14+
+- GitHub CLI (`gh`) authenticated with `read:project` scope
 
-- Use webhook listeners for real-time updates rather than polling
-- Key events to track:
-  - `issues` (opened, assigned, closed, reopened)
-  - `pull_request` (opened, assigned, closed, review_requested)
-  - `issue_comment` and `pull_request_review` for activity tracking
-- Rate limits: GitHub API allows 5000 requests/hour for authenticated requests
-- Consider using GitHub App installation tokens for better rate limits
+### Initial Setup
 
-## Data Model Considerations
+1. **Clone and install dependencies:**
+   ```bash
+   # Backend
+   cd backend
+   npm install
 
-Essential entities to track:
+   # Frontend
+   cd ../frontend
+   npm install
+   ```
 
-- **Tasks**: GitHub issue/PR ID, repository, title, created date, labels
-- **Assignments**: task ID, assignee, assignment date, unassignment date
-- **State Transitions**: task ID, from state, to state, timestamp
-- **Team Members**: GitHub username, name, team affiliation
-- **Completion Metrics**: task ID, completed date, time to completion, assignee
+2. **Configure environment:**
+   ```bash
+   # Backend: Copy and edit .env file
+   cd backend
+   cp .env.example .env
+   # Edit .env with your database URL and GitHub org/project details
+   ```
 
-## Development Workflow
+3. **Update GitHub auth scopes:**
+   ```bash
+   gh auth refresh -h github.com -s read:project
+   ```
 
-Once the codebase is established, document here:
-- How to set up local development environment
-- How to configure GitHub authentication
-- How to run the application
-- How to run tests
-- Database migration commands
+4. **Set up database:**
+   ```bash
+   # Create PostgreSQL database
+   createdb ghmonitoring
+
+   # Run migrations
+   cd backend
+   npm run db:migrate
+   ```
+
+### Running the Application
+
+**Development Mode:**
+
+```bash
+# Terminal 1: Start backend (with auto-reload)
+cd backend
+npm run dev
+
+# Terminal 2: Start frontend (with auto-reload)
+cd frontend
+npm run dev
+```
+
+**Production Mode:**
+
+```bash
+# Build backend
+cd backend
+npm run build
+npm start
+
+# Build frontend
+cd frontend
+npm run build
+npm run preview
+```
+
+### Common Commands
+
+**Backend:**
+- `npm run dev` - Start development server with auto-reload
+- `npm run build` - Compile TypeScript to JavaScript
+- `npm start` - Run compiled JavaScript
+- `npm run db:migrate` - Run database migrations
+
+**Frontend:**
+- `npm run dev` - Start Vite dev server (http://localhost:3000)
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
+
+## Configuration
+
+### Backend Environment Variables
+
+- `PORT` - API server port (default: 3001)
+- `DATABASE_URL` - PostgreSQL connection string
+- `GITHUB_ORG` - GitHub organization (e.g., risa-labs-inc)
+- `GITHUB_PROJECT_NUMBER` - Project board number
+- `POLLING_CRON_SCHEDULE` - Cron schedule for data fetching (default: "0 * * * *")
+
+### Frontend Environment Variables
+
+- `VITE_API_URL` - Backend API URL (default: http://localhost:3001/api)
+
+## GitHub API Integration
+
+This project uses GitHub Projects v2 GraphQL API accessed via `gh api graphql`:
+
+- **Authentication**: Uses `gh` CLI authentication (requires `read:project` scope)
+- **Project Access**: Fetches items from organization ProjectV2
+- **Data Fetched**: Issues, PRs, status, due dates, assignees, custom fields
+- **Pagination**: Automatically handles pagination for large projects
+- **Rate Limits**: Respects GitHub GraphQL rate limits (5000 points/hour)
+
+## Database Schema
+
+- **tasks**: Stores all GitHub issues/PRs with metadata
+- **task_assignments**: Tracks assignee history
+- **task_snapshots**: Daily snapshots for historical analysis
+- **daily_statistics**: Aggregated daily metrics for charts
+
+See `backend/src/database/schema.sql` for full schema.

@@ -1,6 +1,13 @@
 runConfig:
   runtime: nodejs20
 
+  # VPC Access Configuration for Cloud SQL Private IP
+  vpcAccess:
+    egress: PRIVATE_RANGES_ONLY
+    networkInterfaces:
+      - network: default
+        subnetwork: default
+
   # Build configuration
   build:
     # Install backend dependencies

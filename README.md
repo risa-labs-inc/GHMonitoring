@@ -338,11 +338,151 @@ If port 3001 or 3000 is already in use:
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+We use a branch-based Git workflow with automated quality checks on pull requests.
+
+### Git Workflow
+
+#### Branch Naming Convention
+
+Use descriptive branch names with prefixes:
+
+- `feature/description` - New features (e.g., `feature/dashboard-filters`)
+- `fix/description` - Bug fixes (e.g., `fix/overdue-tasks-display`)
+- `chore/description` - Maintenance tasks (e.g., `chore/update-dependencies`)
+- `docs/description` - Documentation updates (e.g., `docs/api-guide`)
+
+#### Development Workflow
+
+**For Bug Fixes:**
+
+1. **Create a branch** from main:
+   ```bash
+   git checkout main
+   git pull origin main
+   git checkout -b fix/bug-description
+   ```
+
+2. **Make your changes** and commit with descriptive messages:
+   ```bash
+   git add .
+   git commit -m "Fix: Description of what was fixed"
+   ```
+
+3. **Test locally**:
+   ```bash
+   # Backend
+   cd backend
+   npm run build
+   npm run dev
+
+   # Frontend
+   cd frontend
+   npm run build
+   npm run dev
+   ```
+
+4. **Push your branch**:
+   ```bash
+   git push origin fix/bug-description
+   ```
+
+5. **Create a Pull Request**:
+   - Via GitHub UI: https://github.com/risa-labs-inc/GHMonitoring/pulls
+   - Or via GitHub CLI:
+     ```bash
+     gh pr create --title "Fix: Bug description" --body "Details about the fix"
+     ```
+
+6. **Automated checks** will run:
+   - TypeScript compilation
+   - ESLint (frontend)
+   - Build verification
+   - All checks must pass before merging
+
+7. **Review and merge** the PR
+
+8. **Deploy manually** when ready:
+   ```bash
+   # Deploy to Firebase/Cloud Run as needed
+   firebase deploy
+   ```
+
+**For New Features:**
+
+Follow the same process, but use `feature/` prefix:
+
+```bash
+git checkout -b feature/feature-name
+# Make changes, commit, push
+git push origin feature/feature-name
+gh pr create --title "Feature: Feature name" --body "Description"
+```
+
+#### Commit Message Conventions
+
+Use clear, descriptive commit messages with prefixes:
+
+- `Fix:` - Bug fixes (e.g., "Fix: Correct overdue task calculation")
+- `Feature:` - New features (e.g., "Feature: Add task priority filter")
+- `Update:` - Updates to existing features (e.g., "Update: Improve error handling")
+- `Refactor:` - Code refactoring (e.g., "Refactor: Simplify API routes")
+- `Docs:` - Documentation (e.g., "Docs: Update API endpoint list")
+- `Chore:` - Maintenance (e.g., "Chore: Update dependencies")
+
+#### Deployment Process
+
+After merging to main:
+
+1. **Backend deployment** (Firebase App Hosting or Cloud Run):
+   ```bash
+   cd backend
+   npm run build
+   firebase deploy  # or your deployment command
+   ```
+
+2. **Frontend deployment**:
+   ```bash
+   cd frontend
+   npm run build
+   # Deploy built files as needed
+   ```
+
+3. **Verify deployment**:
+   - Check that the application is running
+   - Test the changes in production
+   - Monitor logs for any errors
+
+#### Pull Request Guidelines
+
+When creating a pull request:
+
+- **Fill out the PR template** completely
+- **Describe your changes** clearly
+- **List testing steps** for reviewers
+- **Note any deployment requirements** (migrations, env vars, etc.)
+- **Include screenshots** for UI changes
+- **Ensure all automated checks pass**
+
+#### Quick Reference
+
+```bash
+# Start new work
+git checkout main && git pull
+git checkout -b feature/my-feature
+
+# Save your work
+git add .
+git commit -m "Feature: Description"
+
+# Share your work
+git push origin feature/my-feature
+gh pr create
+
+# After PR is merged
+git checkout main
+git pull origin main
+git branch -d feature/my-feature  # Clean up local branch
+```
 
 ## License
 

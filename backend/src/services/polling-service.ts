@@ -68,8 +68,16 @@ export class PollingService {
       console.log('\n3. Saving to database...');
       await this.taskRepository.upsertTasks(tasks);
 
+      // Clean up stale tasks (not in current project)
+      console.log('\n4. Cleaning up stale tasks...');
+      const projectItemIds = tasks.map((task) => task.id);
+      const deletedCount = await this.taskRepository.deleteTasksNotInList(projectItemIds);
+      if (deletedCount === 0) {
+        console.log('   ✓ No stale tasks to clean up');
+      }
+
       // Sync task assignments
-      console.log('\n4. Syncing task assignments...');
+      console.log('\n5. Syncing task assignments...');
       for (const task of tasks) {
         if (task.assignees.length > 0) {
           await this.taskRepository.syncTaskAssignments(
@@ -81,17 +89,29 @@ export class PollingService {
       console.log('   ✓ Assignments synced');
 
       // Create snapshot
-      console.log('\n5. Creating snapshot...');
+      console.log('\n6. Creating snapshot...');
       await this.taskRepository.createSnapshot();
 
       // Save daily statistics
-      console.log('\n6. Saving daily statistics...');
+      console.log('\n7. Saving daily statistics...');
       await this.taskRepository.saveDailyStatistics(
         stats.total,
         stats.open,
         stats.closed,
         stats.overdue
       );
+
+      // Backfill historical data if snapshots exist (only on first run)
+      if (this.lastRunTime === null) {
+        console.log('\n8. Checking for historical data to backfill...');
+        const hasHistoricalData = await this.taskRepository.hasHistoricalSnapshots();
+        if (hasHistoricalData) {
+          console.log('   ✓ Historical snapshots found, backfilling statistics...');
+          await this.taskRepository.backfillDailyStatistics();
+        } else {
+          console.log('   ✓ No historical data to backfill');
+        }
+      }
 
       this.lastRunStatus = 'success';
       this.lastRunError = null;

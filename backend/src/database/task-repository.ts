@@ -301,6 +301,35 @@ export class TaskRepository {
   }
 
   /**
+   * Delete tasks that are not in the provided list of project item IDs
+   * This removes stale tasks from old projects when switching projects
+   */
+  async deleteTasksNotInList(projectItemIds: string[]): Promise<number> {
+    if (projectItemIds.length === 0) {
+      console.log('⚠ No project item IDs provided, skipping cleanup');
+      return 0;
+    }
+
+    const sql = `
+      DELETE FROM tasks
+      WHERE project_item_id NOT IN (${projectItemIds.map((_, i) => `$${i + 1}`).join(', ')})
+      RETURNING github_id
+    `;
+
+    const result = await query(sql, projectItemIds);
+    const deletedCount = result.rows.length;
+
+    if (deletedCount > 0) {
+      console.log(`✓ Cleaned up ${deletedCount} stale tasks from database`);
+      result.rows.forEach((row) => {
+        console.log(`  - Removed: ${row.github_id}`);
+      });
+    }
+
+    return deletedCount;
+  }
+
+  /**
    * Get historical data for charts
    */
   async getHistoricalData(days: number = 30): Promise<HistoricalData[]> {
@@ -325,5 +354,52 @@ export class TaskRepository {
       closedTasks: row.closed_tasks,
       overdueTasks: row.overdue_tasks,
     }));
+  }
+
+  /**
+   * Check if task_snapshots table has any historical data
+   */
+  async hasHistoricalSnapshots(): Promise<boolean> {
+    const sql = `
+      SELECT COUNT(*) as count
+      FROM task_snapshots
+      WHERE snapshot_date < CURRENT_DATE
+    `;
+
+    const result = await query(sql);
+    return result.rows[0].count > 0;
+  }
+
+  /**
+   * Backfill daily_statistics from task_snapshots
+   * This creates historical statistical data from snapshot data
+   */
+  async backfillDailyStatistics(): Promise<number> {
+    const sql = `
+      INSERT INTO daily_statistics (snapshot_date, total_tasks, open_tasks, closed_tasks, overdue_tasks)
+      SELECT
+        snapshot_date::date,
+        COUNT(*) as total_tasks,
+        COUNT(*) FILTER (WHERE state = 'OPEN') as open_tasks,
+        COUNT(*) FILTER (WHERE state IN ('CLOSED', 'MERGED')) as closed_tasks,
+        COUNT(*) FILTER (WHERE is_overdue = true) as overdue_tasks
+      FROM task_snapshots
+      GROUP BY snapshot_date::date
+      ON CONFLICT (snapshot_date) DO UPDATE SET
+        total_tasks = EXCLUDED.total_tasks,
+        open_tasks = EXCLUDED.open_tasks,
+        closed_tasks = EXCLUDED.closed_tasks,
+        overdue_tasks = EXCLUDED.overdue_tasks
+      RETURNING snapshot_date
+    `;
+
+    const result = await query(sql);
+    const backfilledDays = result.rows.length;
+
+    if (backfilledDays > 0) {
+      console.log(`✓ Backfilled ${backfilledDays} days of statistics from task snapshots`);
+    }
+
+    return backfilledDays;
   }
 }

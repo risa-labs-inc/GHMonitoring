@@ -46,30 +46,7 @@ async function start() {
   try {
     console.log('🚀 Starting GitHub Monitoring Server...\n');
 
-    // Test database connection
-    console.log('1. Testing database connection...');
-    const dbConnected = await testConnection();
-    if (!dbConnected) {
-      throw new Error('Database connection failed');
-    }
-    console.log('   ✓ Database connected\n');
-
-    // Note: Database migrations are run separately as a Cloud Run Job
-    // See: npm run db:migrate:prod
-
-    // Initialize polling service
-    console.log('2. Initializing polling service...');
-    const pollingService = new PollingService();
-    await pollingService.initialize();
-    setPollingService(pollingService);
-    console.log('   ✓ Polling service initialized\n');
-
-    // Start scheduled polling
-    console.log('3. Starting scheduled polling...');
-    pollingService.start();
-    console.log('   ✓ Scheduled polling started\n');
-
-    // Start HTTP server
+    // Start HTTP server first (so Cloud Run knows we're alive)
     app.listen(config.port, () => {
       console.log('========================================');
       console.log(`✓ Server running on port ${config.port}`);
@@ -77,6 +54,37 @@ async function start() {
       console.log(`✓ API: http://localhost:${config.port}/api`);
       console.log('========================================\n');
     });
+
+    // Test database connection in background
+    console.log('1. Testing database connection...');
+    testConnection().then(dbConnected => {
+      if (dbConnected) {
+        console.log('   ✓ Database connected\n');
+      } else {
+        console.warn('   ⚠ Database connection failed, will retry on requests\n');
+      }
+    }).catch(err => {
+      console.warn('   ⚠ Database connection error:', err.message);
+    });
+
+    // Note: Database migrations are run separately as a Cloud Run Job
+    // See: npm run db:migrate:prod
+
+    // Initialize polling service
+    console.log('2. Initializing polling service...');
+    const pollingService = new PollingService();
+    pollingService.initialize().then(() => {
+      console.log('   ✓ Polling service initialized\n');
+
+      // Start scheduled polling
+      console.log('3. Starting scheduled polling...');
+      pollingService.start();
+      console.log('   ✓ Scheduled polling started\n');
+    }).catch(err => {
+      console.error('   ⚠ Failed to initialize polling service:', err.message);
+    });
+
+    setPollingService(pollingService);
 
     // Graceful shutdown
     process.on('SIGTERM', () => {

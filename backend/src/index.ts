@@ -3,6 +3,7 @@ import cors from 'cors';
 import path from 'path';
 import { config } from './config';
 import { testConnection } from './database/connection';
+import { migrate } from './database/migrate';
 import { PollingService } from './services/polling-service';
 import routes, { setPollingService } from './api/routes';
 import logger from './utils/logger';
@@ -53,15 +54,20 @@ async function start() {
     }
     console.log('   ✓ Database connected\n');
 
+    // Run database migrations
+    console.log('2. Running database migrations...');
+    await migrate();
+    console.log('   ✓ Database migrations completed\n');
+
     // Initialize polling service
-    console.log('2. Initializing polling service...');
+    console.log('3. Initializing polling service...');
     const pollingService = new PollingService();
     await pollingService.initialize();
     setPollingService(pollingService);
     console.log('   ✓ Polling service initialized\n');
 
     // Start scheduled polling
-    console.log('3. Starting scheduled polling...');
+    console.log('4. Starting scheduled polling...');
     pollingService.start();
     console.log('   ✓ Scheduled polling started\n');
 

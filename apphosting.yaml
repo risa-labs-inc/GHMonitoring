@@ -1,6 +1,13 @@
 runConfig:
   runtime: nodejs20
 
+  # Use Cloud Run gen2 execution environment
+  cpu: 1
+  memoryMiB: 512
+  minInstances: 0
+  maxInstances: 10
+  concurrency: 80
+
   # VPC Access Configuration for Cloud SQL Private IP
   vpcAccess:
     egress: PRIVATE_RANGES_ONLY

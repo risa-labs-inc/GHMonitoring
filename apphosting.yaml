@@ -1,23 +1,12 @@
 runConfig:
   runtime: nodejs20
 
-  # Root directory points to backend (where package.json is)
-  rootDirectory: backend
-
   # VPC Access Configuration for Cloud SQL Private IP
   vpcAccess:
     egress: PRIVATE_RANGES_ONLY
     networkInterfaces:
       - network: default
         subnetwork: default
-
-  # Build configuration
-  build:
-    # Build backend TypeScript
-    - npm run build
-    # Install frontend dependencies and build
-    - npm install --prefix ../frontend
-    - npm run build --prefix ../frontend
 
   # Environment variables (will be configured in Firebase Console)
   env:

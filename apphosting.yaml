@@ -2,11 +2,15 @@ runConfig:
   runtime: nodejs20
 
   # Use Cloud Run gen2 execution environment
+  # Setting cpu > 0 and memoryMiB >= 512 should force gen2
   cpu: 1
   memoryMiB: 512
   minInstances: 0
   maxInstances: 10
   concurrency: 80
+
+  # Explicitly request gen2 execution environment
+  executionEnvironment: gen2
 
   # VPC Access Configuration for Cloud SQL Private IP
   vpcAccess:
